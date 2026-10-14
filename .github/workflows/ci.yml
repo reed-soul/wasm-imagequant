@@ -1,0 +1,107 @@
+name: CI & Release Pipeline
+
+on:
+  push:
+    branches: [ master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Rust Tests & Benchmarks Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo dependencies
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run unit & integration tests
+        run: cargo test --verbose
+
+      - name: Verify examples and benchmarks compile
+        run: cargo check --examples
+
+  wasm-build:
+    name: WebAssembly Build & Artifacts
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust & WASM target
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        uses: jetli/wasm-pack-action@v0.4.0
+        with:
+          version: 'latest'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Build WebAssembly (Release)
+        run: pnpm build
+
+      - name: Verify WASM binary size
+        run: |
+          WASM_FILE="pkg/wasm_imagequant_bg.wasm"
+          if [ ! -f "$WASM_FILE" ]; then
+            echo "Error: $WASM_FILE not found!"
+            exit 1
+          fi
+          FILE_SIZE=$(stat -c%s "$WASM_FILE")
+          MAX_SIZE=204800 # 200 KB limit
+          echo "WASM binary size: $FILE_SIZE bytes (limit: $MAX_SIZE bytes)"
+          if [ "$FILE_SIZE" -gt "$MAX_SIZE" ]; then
+            echo "Error: WASM bundle exceeds budget!"
+            exit 1
+          fi
+
+      - name: Archive compiled WebAssembly package
+        uses: actions/upload-artifact@v4
+        with:
+          name: wasm-imagequant-pkg
+          path: pkg/
+
+  release:
+    name: GitHub Release
+    runs-on: ubuntu-latest
+    needs: wasm-build
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download WASM artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: wasm-imagequant-pkg
+          path: pkg/
+
+      - name: Package release ZIP
+        run: |
+          cd pkg && zip -r ../wasm-imagequant-dist.zip . && cd ..
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: wasm-imagequant-dist.zip
+          generate_release_notes: true

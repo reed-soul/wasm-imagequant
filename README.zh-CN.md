@@ -5,7 +5,8 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/reed-soul/wasm-imagequant/blob/master/LICENSE"><img src="https://img.shields.io/badge/License-MIT%20%2F%20Apache--2.0-blue.svg" alt="License"></a>
+  <a href="https://github.com/reed-soul/wasm-imagequant/actions/workflows/ci.yml"><img src="https://github.com/reed-soul/wasm-imagequant/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/reed-soul/wasm-imagequant/blob/master/LICENSE-MIT"><img src="https://img.shields.io/badge/License-MIT%20%2F%20Apache--2.0-blue.svg" alt="License"></a>
   <a href="pkg/wasm_imagequant_bg.wasm"><img src="https://img.shields.io/badge/WASM%20Size-117%20KB-success.svg" alt="WASM Size"></a>
   <a href="Cargo.toml"><img src="https://img.shields.io/badge/Rust-2021%20Edition-orange.svg" alt="Rust Edition"></a>
   <a href="package.json"><img src="https://img.shields.io/badge/Package%20Manager-pnpm-4a90e2.svg" alt="pnpm"></a>
