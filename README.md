@@ -5,11 +5,12 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/reed-soul/wasm-imagequant/actions/workflows/ci.yml"><img src="https://github.com/reed-soul/wasm-imagequant/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/reed-soul/wasm-imagequant/blob/master/LICENSE-MIT"><img src="https://img.shields.io/badge/License-MIT%20%2F%20Apache--2.0-blue.svg" alt="License"></a>
-  <a href="pkg/wasm_imagequant_bg.wasm"><img src="https://img.shields.io/badge/WASM%20Size-117%20KB-success.svg" alt="WASM Size"></a>
-  <a href="Cargo.toml"><img src="https://img.shields.io/badge/Rust-2021%20Edition-orange.svg" alt="Rust Edition"></a>
-  <a href="package.json"><img src="https://img.shields.io/badge/Package%20Manager-pnpm-4a90e2.svg" alt="pnpm"></a>
+  <a href="https://www.npmjs.com/package/wasm-imagequant"><img src="https://img.shields.io/npm/v/wasm-imagequant.svg?style=flat-square&color=cb3837" alt="npm version"></a>
+  <a href="https://github.com/reed-soul/wasm-imagequant/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/reed-soul/wasm-imagequant/ci.yml?branch=master&style=flat-square" alt="CI"></a>
+  <a href="https://github.com/reed-soul/wasm-imagequant/blob/master/LICENSE-MIT"><img src="https://img.shields.io/badge/License-MIT%20%2F%20Apache--2.0-blue.svg?style=flat-square" alt="License"></a>
+  <a href="pkg/wasm_imagequant_bg.wasm"><img src="https://img.shields.io/badge/WASM%20Size-117%20KB-success.svg?style=flat-square" alt="WASM Size"></a>
+  <a href="https://www.npmjs.com/package/wasm-imagequant"><img src="https://img.shields.io/npm/dm/wasm-imagequant.svg?style=flat-square" alt="npm downloads"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/Package%20Manager-pnpm-4a90e2.svg?style=flat-square" alt="pnpm"></a>
 </p>
 
 <p align="center">
@@ -96,30 +97,36 @@ Built-in pure Rust PNG encoder that eliminates external C dependencies. Automati
 
 ## 🚀 Quick Start
 
-### 1. Build and Test via pnpm
+### 1. Installation
+
+Install via your preferred package manager (pnpm recommended):
 
 ```bash
-# Clone the repository
-git clone https://github.com/reed-soul/wasm-imagequant.git
-cd wasm-imagequant
+# via pnpm
+pnpm add wasm-imagequant
 
-# Build the WebAssembly release package (pkg/)
-pnpm build
+# via npm
+npm install wasm-imagequant
 
-# Run all test suites
-pnpm test
+# via yarn
+yarn add wasm-imagequant
 ```
 
-### 2. Browser Integration (Vite, Webpack, Next.js)
+---
 
-```javascript
-import init, { compress_png } from './pkg/wasm_imagequant.js';
+### 2. Frontend & Bundler Integration (Vite, Webpack, Next.js, Nuxt, React, Vue)
 
-// 1. Initialize WebAssembly runtime
+`wasm-imagequant` is distributed with native ES Modules and TypeScript definitions.
+
+#### Standard Browser Usage
+```typescript
+import init, { compress_png } from 'wasm-imagequant';
+
+// 1. Initialize WebAssembly runtime (fetches and compiles wasm_imagequant_bg.wasm)
 await init();
 
-// 2. Extract RGBA pixel buffer from Canvas
-const ctx = canvas.getContext('2d');
+// 2. Extract RGBA pixel buffer from HTML Canvas
+const ctx = canvas.getContext('2d')!;
 const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
 // 3. Compress using wasm-imagequant
@@ -128,22 +135,77 @@ const result = compress_png(
   imgData.data,  // Uint8Array: raw RGBA pixels (width * height * 4)
   canvas.width,  // Image width
   canvas.height, // Image height
-  256,           // Max palette colors (2 - 256)
-  0.8            // Dither strength (0.0: off, 1.0: full diffusion)
+  256,           // Max palette colors (2 - 256, default: 256)
+  0.8            // Dither strength (0.0: off, 1.0: full diffusion, default: 0.8)
 );
 
-// 4. Access output PNG bytes
-const pngBytes = result.data;           // Uint8Array: Valid PNG binary stream
-const paletteSize = result.palette_size; // Actual number of colors assigned
+// 4. Access output PNG bytes and preview
+const pngBytes: Uint8Array = result.data;        // Uint8Array: valid standard PNG binary stream
+const paletteSize: number = result.palette_size; // Actual number of colors assigned
 const blob = new Blob([pngBytes], { type: 'image/png' });
-const downloadUrl = URL.createObjectURL(blob);
+const previewUrl = URL.createObjectURL(blob);
 ```
 
-### 3. Interactive Web Playground
+#### Vite Explicit Static Asset Import
+If your bundler requires explicit URL resolution for static `.wasm` files:
+```typescript
+import init, { compress_png } from 'wasm-imagequant';
+import wasmUrl from 'wasm-imagequant/wasm_imagequant_bg.wasm?url';
+
+await init(wasmUrl);
+```
+
+#### Non-blocking Web Worker (Recommended for High Resolutions)
+Execute image quantization off the main thread to guarantee 60 FPS UI responsiveness:
+```typescript
+// worker.ts
+import init, { compress_png } from 'wasm-imagequant';
+
+let isReady = false;
+
+self.onmessage = async (e: MessageEvent<{ rgba: Uint8Array; width: number; height: number; maxColors?: number; dither?: number }>) => {
+  if (!isReady) {
+    await init();
+    isReady = true;
+  }
+  const { rgba, width, height, maxColors = 256, dither = 0.8 } = e.data;
+  const result = compress_png(rgba, width, height, maxColors, dither);
+  // Zero-copy transfer the result buffer back to the main thread
+  self.postMessage(result.data, [result.data.buffer]);
+};
+```
+
+---
+
+### 3. Server-side & Node.js Integration (ESM)
+
+In Node.js 18+ or serverless cloud functions:
+
+```typescript
+import fs from 'node:fs/promises';
+import init, { compress_png } from 'wasm-imagequant';
+
+// Pass binary buffer directly to init() in Node.js
+const wasmBuffer = await fs.readFile(
+  new URL('node_modules/wasm-imagequant/wasm_imagequant_bg.wasm', import.meta.url)
+);
+await init(wasmBuffer);
+
+// Compress raw RGBA buffer
+const result = compress_png(rgbaBuffer, width, height, 256, 0.8);
+await fs.writeFile('output.png', result.data);
+```
+
+---
+
+### 4. Interactive Web Playground
 
 Launch the local interactive visual playground with one command:
 
 ```bash
+git clone https://github.com/reed-soul/wasm-imagequant.git
+cd wasm-imagequant
+pnpm install
 pnpm dev
 ```
 Open `http://localhost:3000/playground/` in your browser to inspect side-by-side comparisons, adjust sliders for color count and dithering, and inspect real-time compression metrics.

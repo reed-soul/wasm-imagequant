@@ -5,11 +5,12 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/reed-soul/wasm-imagequant/actions/workflows/ci.yml"><img src="https://github.com/reed-soul/wasm-imagequant/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
-  <a href="https://github.com/reed-soul/wasm-imagequant/blob/master/LICENSE-MIT"><img src="https://img.shields.io/badge/License-MIT%20%2F%20Apache--2.0-blue.svg" alt="License"></a>
-  <a href="pkg/wasm_imagequant_bg.wasm"><img src="https://img.shields.io/badge/WASM%20Size-117%20KB-success.svg" alt="WASM Size"></a>
-  <a href="Cargo.toml"><img src="https://img.shields.io/badge/Rust-2021%20Edition-orange.svg" alt="Rust Edition"></a>
-  <a href="package.json"><img src="https://img.shields.io/badge/Package%20Manager-pnpm-4a90e2.svg" alt="pnpm"></a>
+  <a href="https://www.npmjs.com/package/wasm-imagequant"><img src="https://img.shields.io/npm/v/wasm-imagequant.svg?style=flat-square&color=cb3837" alt="npm version"></a>
+  <a href="https://github.com/reed-soul/wasm-imagequant/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/reed-soul/wasm-imagequant/ci.yml?branch=master&style=flat-square" alt="CI"></a>
+  <a href="https://github.com/reed-soul/wasm-imagequant/blob/master/LICENSE-MIT"><img src="https://img.shields.io/badge/License-MIT%20%2F%20Apache--2.0-blue.svg?style=flat-square" alt="License"></a>
+  <a href="pkg/wasm_imagequant_bg.wasm"><img src="https://img.shields.io/badge/WASM%20Size-117%20KB-success.svg?style=flat-square" alt="WASM Size"></a>
+  <a href="https://www.npmjs.com/package/wasm-imagequant"><img src="https://img.shields.io/npm/dm/wasm-imagequant.svg?style=flat-square" alt="npm downloads"></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/Package%20Manager-pnpm-4a90e2.svg?style=flat-square" alt="pnpm"></a>
 </p>
 
 <p align="center">
@@ -98,55 +99,113 @@ flowchart TD
 
 ### 1. 安装与包管理器
 
-作为纯前端/全栈工程，推荐使用 **pnpm**：
+直接通过包管理器安装已发布的 npm 官方依赖包（推荐使用 **pnpm**）：
 
 ```bash
-# 克隆仓库
-git clone https://github.com/reed-soul/wasm-imagequant.git
-cd wasm-imagequant
+# 使用 pnpm 安装（推荐）
+pnpm add wasm-imagequant
 
-# 编译 WebAssembly 发行包
-pnpm build
+# 使用 npm 安装
+npm install wasm-imagequant
 
-# 运行自动化测试套件
-pnpm test
+# 使用 yarn 安装
+yarn add wasm-imagequant
 ```
 
-### 2. 浏览器端集成范式 (Vite / Webpack / ES Module)
+---
 
-```javascript
-import init, { compress_png } from './pkg/wasm_imagequant.js';
+### 2. 现代前端与构建工具集成 (Vite / Webpack / Next.js / Nuxt / React / Vue)
 
-// 1. 初始化 WebAssembly 运行时
+`wasm-imagequant` 随包内置原生 ES Module 规范与高精度 TypeScript 类型定义文件。
+
+#### 标准浏览器环境调用
+```typescript
+import init, { compress_png } from 'wasm-imagequant';
+
+// 1. 初始化 WebAssembly 运行时 (自动加载并编译 wasm_imagequant_bg.wasm)
 await init();
 
-// 2. 从 Canvas 获取 RGBA 像素数据
-const ctx = canvas.getContext('2d');
+// 2. 从 HTML Canvas 获取原始 RGBA 像素数据
+const ctx = canvas.getContext('2d')!;
 const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-// 3. 执行自研高保真压缩
-// 参数: (rgbaData, width, height, maxColors, ditherStrength)
+// 3. 执行感知色彩量化与自适应 PNG 压缩
+// 函数签名: compress_png(rgbaData, width, height, maxColors, ditherStrength)
 const result = compress_png(
-  imgData.data,  // Uint8Array: 原始未压缩 RGBA 像素字节
+  imgData.data,  // Uint8Array: 原始未压缩 RGBA 像素字节流 (width * height * 4)
   canvas.width,  // 图像宽度
   canvas.height, // 图像高度
-  256,           // 最大调色板颜色数 (2 - 256)
-  0.8            // 抖动强度 (0.0: 无抖动, 1.0: 完全扩散)
+  256,           // 最大调色板颜色数 (2 - 256，默认 256)
+  0.8            // 抖动强度 (0.0: 无抖动, 1.0: 完全扩散，默认 0.8)
 );
 
-// 4. 获取压缩后输出的 Indexed-PNG 二进制流并直接展示或下载
-const pngBytes = result.data;        // Uint8Array (标准 PNG 文件字节流)
-const paletteSize = result.palette_size; // 实际分配的调色板色彩数
+// 4. 获取压缩后输出的标准 Indexed-PNG 二进制流并直接展示或下载
+const pngBytes: Uint8Array = result.data;        // Uint8Array: 完整标准 PNG 文件字节流
+const paletteSize: number = result.palette_size; // 算法实际收敛分配的色彩总数
 const blob = new Blob([pngBytes], { type: 'image/png' });
 const previewUrl = URL.createObjectURL(blob);
 ```
 
-### 3. 本地可视化 Playground 交互体验
+#### Vite 静态资源显式引入（推荐大型构建工程）
+若你的打包环境配置了特殊的静态资源哈希路径规则：
+```typescript
+import init, { compress_png } from 'wasm-imagequant';
+import wasmUrl from 'wasm-imagequant/wasm_imagequant_bg.wasm?url';
+
+await init(wasmUrl);
+```
+
+#### Web Worker 异步非阻塞集成（超高分辨率强烈推荐）
+通过 Web Worker 将量化与 Deflate 压缩移出主线程，杜绝页面卡顿，保证 60 FPS 流畅交互：
+```typescript
+// worker.ts
+import init, { compress_png } from 'wasm-imagequant';
+
+let isReady = false;
+
+self.onmessage = async (e: MessageEvent<{ rgba: Uint8Array; width: number; height: number; maxColors?: number; dither?: number }>) => {
+  if (!isReady) {
+    await init();
+    isReady = true;
+  }
+  const { rgba, width, height, maxColors = 256, dither = 0.8 } = e.data;
+  const result = compress_png(rgba, width, height, maxColors, dither);
+  // 通过 Transferable Objects 零拷贝将二进制流送回主线程
+  self.postMessage(result.data, [result.data.buffer]);
+};
+```
+
+---
+
+### 3. 服务端与 Node.js 环境集成 (ESM)
+
+在 Node.js 18+ 或 Serverless 云函数中：
+
+```typescript
+import fs from 'node:fs/promises';
+import init, { compress_png } from 'wasm-imagequant';
+
+// 在 Node.js 中将 wasm 文件作为二进制直接注入 init()
+const wasmBuffer = await fs.readFile(
+  new URL('node_modules/wasm-imagequant/wasm_imagequant_bg.wasm', import.meta.url)
+);
+await init(wasmBuffer);
+
+// 压缩处理
+const result = compress_png(rgbaBuffer, width, height, 256, 0.8);
+await fs.writeFile('output.png', result.data);
+```
+
+---
+
+### 4. 本地可视化 Playground 交互体验
 
 工程内置了零依赖的前端可视化测试平台，可直接对比压缩效果与实时统计耗时：
 
 ```bash
-# 一键启动演示服务
+git clone https://github.com/reed-soul/wasm-imagequant.git
+cd wasm-imagequant
+pnpm install
 pnpm dev
 ```
 启动后在浏览器访问 `http://localhost:3000/playground/`，即可上传本地任意照片或图表，自由调节颜色数与抖动强度，实时体验左右像素对比及缩减统计。
