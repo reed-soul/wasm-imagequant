@@ -34,13 +34,13 @@ flowchart TD
     G --> H["输出高压缩率 Indexed PNG 二进制流"]
 ```
 
-- **[`src/color.rs`](file:///home/sutpc/code/temp/wasm-imagequant/wasm-imagequant/src/color.rs)**：Oklab 感知色彩模型实现，支持双向精准转换与复合透明度色差计算。
-- **[`src/hist.rs`](file:///home/sutpc/code/temp/wasm-imagequant/wasm-imagequant/src/hist.rs)**：空间特征直方图降采样，保留亚像素均值精度，减少 99% 的聚类运算开销。
-- **[`src/quant.rs`](file:///home/sutpc/code/temp/wasm-imagequant/wasm-imagequant/src/quant.rs)**：两阶段自研量化引擎（方差切分初选 + K-Means 沃罗诺伊质心松弛 + 孤立点再注入）。
-- **[`src/vptree.rs`](file:///home/sutpc/code/temp/wasm-imagequant/wasm-imagequant/src/vptree.rs)**：高维度量空间 VP-Tree 加速器，相邻像素命中缓存达 80% 以上。
-- **[`src/dither.rs`](file:///home/sutpc/code/temp/wasm-imagequant/wasm-imagequant/src/dither.rs)**：自适应双向蛇形误差扩散，仅消耗双行内存，平缓色块自动抑制噪点。
-- **[`src/png.rs`](file:///home/sutpc/code/temp/wasm-imagequant/wasm-imagequant/src/png.rs)**：自适应 1/2/4/8 位深 Indexed-PNG 编码器，最小化 `tRNS` 块。
-- **[`src/lib.rs`](file:///home/sutpc/code/temp/wasm-imagequant/wasm-imagequant/src/lib.rs)**：导出纯 Rust 原生 API 与 WebAssembly (WASM) 绑定。
+- **[`src/color.rs`](file:///home/sutpc/code/temp/wasm-imagequant/src/color.rs)**：Oklab 感知色彩模型实现，支持双向精准转换与复合透明度色差计算。
+- **[`src/hist.rs`](file:///home/sutpc/code/temp/wasm-imagequant/src/hist.rs)**：空间特征直方图降采样，保留亚像素均值精度，减少 99% 的聚类运算开销。
+- **[`src/quant.rs`](file:///home/sutpc/code/temp/wasm-imagequant/src/quant.rs)**：两阶段自研量化引擎（方差切分初选 + K-Means 沃罗诺伊质心松弛 + 孤立点再注入）。
+- **[`src/vptree.rs`](file:///home/sutpc/code/temp/wasm-imagequant/src/vptree.rs)**：高维度量空间 VP-Tree 加速器，相邻像素命中缓存达 80% 以上。
+- **[`src/dither.rs`](file:///home/sutpc/code/temp/wasm-imagequant/src/dither.rs)**：自适应双向蛇形误差扩散，仅消耗双行内存，平缓色块自动抑制噪点。
+- **[`src/png.rs`](file:///home/sutpc/code/temp/wasm-imagequant/src/png.rs)**：自适应 1/2/4/8 位深 Indexed-PNG 编码器，最小化 `tRNS` 块。
+- **[`src/lib.rs`](file:///home/sutpc/code/temp/wasm-imagequant/src/lib.rs)**：导出纯 Rust 原生 API 与 WebAssembly (WASM) 绑定。
 
 ---
 
@@ -90,15 +90,14 @@ const pngBytes = result.data;
 const blob = new Blob([pngBytes], { type: 'image/png' });
 ```
 
-### 4. 浏览器端 Demo 测试
-
-在本地启动静态服务器（或直接用 VS Code / WebStorm Live Server 打开 `wasm-imagequant/demo.html`）：
+### 4. 浏览器端 Playground 交互演示
+在本地启动静态服务器体验（工程已配置 `pnpm` 快捷脚本）：
 
 ```bash
-# 例如使用 npx 快速启动
-npx serve wasm-imagequant
+# 一键启动演示服务（或 npx serve .）
+pnpm dev
 ```
-在浏览器中即可体验原图与压缩图左右对照、滑动调节参数、耗时与压缩比实时统计。
+启动后在浏览器打开 `http://localhost:3000/playground/`，即可体验原图与压缩图左右对照、实时滑动调节参数、耗时与压缩比精确统计。
 
 ---
 
