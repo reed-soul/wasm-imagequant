@@ -91,10 +91,9 @@ jobs:
           cd pkg && zip -r ../wasm-imagequant-dist.zip . && cd ..
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: wasm-imagequant-dist.zip
-          generate_release_notes: true
+        run: gh release create "$GITHUB_REF_NAME" wasm-imagequant-dist.zip --generate-notes
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v7
