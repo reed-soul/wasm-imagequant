@@ -69,10 +69,12 @@ jobs:
           path: pkg/
 
   release:
-    name: GitHub Release
+    name: GitHub Release & NPM Publish
     runs-on: ubuntu-24.04
     needs: wasm-build
     if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v7
@@ -92,3 +94,19 @@ jobs:
         with:
           files: wasm-imagequant-dist.zip
           generate_release_notes: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: latest
+
+      - name: Publish to NPM
+        run: pnpm publish pkg --access public --no-git-checks
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

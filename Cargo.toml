@@ -2,6 +2,14 @@
 name = "wasm-imagequant"
 version = "0.1.0"
 edition = "2021"
+authors = ["reed-soul <https://github.com/reed-soul>"]
+description = "High-performance perceptual color quantization and PNG compressor in WebAssembly (Rust)"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/reed-soul/wasm-imagequant"
+homepage = "https://github.com/reed-soul/wasm-imagequant"
+readme = "README.md"
+keywords = ["wasm", "webassembly", "imagequant", "pngquant", "image-compression"]
+categories = ["multimedia::images", "wasm"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
