@@ -1,0 +1,8 @@
+target/
+ref-libimagequant/
+wasm-imagequant/target/
+wasm-imagequant/pkg/
+node_modules/
+*.log
+test_output/
+.DS_Store

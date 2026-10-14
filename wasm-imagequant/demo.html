@@ -2,33 +2,242 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>自研前端 WASM PNG 压缩测试</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>wasm-imagequant: 新一代感知色彩量化与 8-bit PNG 压缩体验</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --card-bg: #1e293b;
+            --border-color: #334155;
+            --text-color: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent-color: #38bdf8;
+            --accent-hover: #0284c7;
+            --success-color: #4ade80;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            max-width: 1000px;
+            width: 100%;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        h1 {
+            color: var(--accent-color);
+            margin-bottom: 0.5rem;
+        }
+        p.subtitle {
+            color: var(--text-muted);
+            margin: 0;
+        }
+        .control-panel {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        label {
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+        input[type="range"] {
+            accent-color: var(--accent-color);
+        }
+        button {
+            background-color: var(--accent-color);
+            color: #0f172a;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover:not(:disabled) {
+            background-color: var(--accent-hover);
+            color: #fff;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .preview-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .preview-card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .preview-card h3 {
+            margin: 0 0 0.5rem 0;
+            font-size: 1.1rem;
+        }
+        .preview-info {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            margin-bottom: 1rem;
+        }
+        .img-container {
+            width: 100%;
+            height: 380px;
+            border-radius: 8px;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-image: 
+                linear-gradient(45deg, #1e293b 25%, transparent 25%), 
+                linear-gradient(-45deg, #1e293b 25%, transparent 25%), 
+                linear-gradient(45deg, transparent 75%, #1e293b 75%), 
+                linear-gradient(-45deg, transparent 75%, #1e293b 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            background-color: #0f172a;
+        }
+        .img-container img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        .stat-badge {
+            display: inline-block;
+            background: rgba(74, 222, 128, 0.15);
+            color: var(--success-color);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-weight: bold;
+        }
+    </style>
 </head>
 <body>
-    <input type="file" id="upload" accept="image/png, image/jpeg" />
-    <br><br>
-    <button id="btn" disabled>压缩并下载 8-bit PNG</button>
-    <p id="info"></p>
+    <div class="container">
+        <header>
+            <h1>wasm-imagequant 压缩评测平台</h1>
+            <p class="subtitle">Oklab 全感知空间聚类 + 沃罗诺伊质心松弛 + 自适应蛇形抖动 + 自适应位深 PNG</p>
+        </header>
+
+        <div class="control-panel">
+            <div class="control-group">
+                <label for="upload">选择测试图片 (PNG / JPEG / WebP):</label>
+                <input type="file" id="upload" accept="image/png, image/jpeg, image/webp" />
+            </div>
+
+            <div class="control-group">
+                <label for="colorCount">最大调色板颜色数: <span id="colorCountVal">256</span></label>
+                <input type="range" id="colorCount" min="2" max="256" value="256" />
+            </div>
+
+            <div class="control-group">
+                <label for="ditherStrength">抖动强度: <span id="ditherVal">0.8</span></label>
+                <input type="range" id="ditherStrength" min="0" max="1" step="0.05" value="0.8" />
+            </div>
+
+            <button id="btn" disabled>压缩图像</button>
+            <button id="downloadBtn" disabled style="display: none;">下载 PNG</button>
+        </div>
+
+        <div class="preview-grid">
+            <div class="preview-card">
+                <h3>原始图像</h3>
+                <div class="preview-info" id="origInfo">未载入</div>
+                <div class="img-container">
+                    <img id="origImg" alt="原始图像预览" />
+                </div>
+            </div>
+
+            <div class="preview-card">
+                <h3>wasm-imagequant 压缩结果</h3>
+                <div class="preview-info" id="compInfo">等待压缩...</div>
+                <div class="img-container">
+                    <img id="compImg" alt="压缩图像预览" />
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script type="module">
         import init, { compress_png } from './pkg/wasm_imagequant.js';
         let wasmReady = false;
         let imgBitmap = null;
+        let originalFile = null;
+        let compressedBlob = null;
 
         init().then(() => {
             wasmReady = true;
-            console.log("WASM 核心已就绪！");
+            console.log("wasm-imagequant WASM 模块加载完成！");
+        });
+
+        const colorCountSlider = document.getElementById('colorCount');
+        const colorCountVal = document.getElementById('colorCountVal');
+        colorCountSlider.addEventListener('input', () => {
+            colorCountVal.innerText = colorCountSlider.value;
+        });
+
+        const ditherSlider = document.getElementById('ditherStrength');
+        const ditherVal = document.getElementById('ditherVal');
+        ditherSlider.addEventListener('input', () => {
+            ditherVal.innerText = ditherSlider.value;
         });
 
         document.getElementById('upload').addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
+            originalFile = file;
             imgBitmap = await createImageBitmap(file);
+
+            const origImg = document.getElementById('origImg');
+            origImg.src = URL.createObjectURL(file);
+
+            const rawMb = ((imgBitmap.width * imgBitmap.height * 4) / (1024 * 1024)).toFixed(1);
+            document.getElementById('origInfo').innerText = 
+                `${file.name} | ${imgBitmap.width}x${imgBitmap.height} (${rawMb} MB 原始像素) | 文件大小: ${(file.size / 1024).toFixed(1)} KB`;
+
             document.getElementById('btn').disabled = !wasmReady;
-            document.getElementById('info').innerText = `已载入: ${file.name} (${imgBitmap.width}x${imgBitmap.height}), 原始体积: ${(file.size / 1024).toFixed(1)} KB`;
+            document.getElementById('downloadBtn').style.display = 'none';
         });
 
-        document.getElementById('btn').addEventListener('click', () => {
+        document.getElementById('btn').addEventListener('click', async () => {
+            if (!imgBitmap) return;
+
+            const btn = document.getElementById('btn');
+            btn.disabled = true;
+            btn.innerText = '正在计算压缩中...';
+            document.getElementById('compInfo').innerText = '正在执行 Oklab 感知量化与抖动重映射，请稍候...';
+
+            // 允许浏览器重绘 UI 提示状态
+            await new Promise((r) => setTimeout(r, 50));
+
             const canvas = document.createElement('canvas');
             canvas.width = imgBitmap.width;
             canvas.height = imgBitmap.height;
@@ -36,16 +245,47 @@
             ctx.drawImage(imgBitmap, 0, 0);
             const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
-            console.time("WASM压缩耗时");
-            const result = compress_png(imgData.data, canvas.width, canvas.height, 256, 0.8);
-            console.timeEnd("WASM压缩耗时");
+            const maxColors = parseInt(colorCountSlider.value, 10);
+            const dither = parseFloat(ditherSlider.value);
 
-            const blob = new Blob([result.data], { type: 'image/png' });
-            document.getElementById('info').innerText += ` -> 压缩后: ${(blob.size / 1024).toFixed(1)} KB`;
+            const t0 = performance.now();
+            const result = compress_png(imgData.data, canvas.width, canvas.height, maxColors, dither);
+            const duration = (performance.now() - t0).toFixed(1);
 
+            compressedBlob = new Blob([result.data], { type: 'image/png' });
+            const compressedUrl = URL.createObjectURL(compressedBlob);
+
+            const compImg = document.getElementById('compImg');
+            compImg.src = compressedUrl;
+
+            const rawBytes = canvas.width * canvas.height * 4;
+            const savedFromRaw = ((1 - (compressedBlob.size / rawBytes)) * 100).toFixed(1);
+            const savedFromInput = ((1 - (compressedBlob.size / originalFile.size)) * 100).toFixed(1);
+
+            let note = '';
+            if (originalFile.size < compressedBlob.size) {
+                note = `<div style="font-size:0.8rem; color:#f59e0b; margin-top:4px;">* 提示: 原始文件为高压缩率的 JPEG 格式 (频域有损压缩)。转为光栅调色板 PNG 后，相比原始未压缩内存像素节省了 <strong>${savedFromRaw}%</strong> 体积。</div>`;
+            }
+
+            document.getElementById('compInfo').innerHTML = 
+                `体积: <strong>${(compressedBlob.size / 1024).toFixed(1)} KB</strong> ` +
+                `(<span class="stat-badge">相对原始像素省 ${savedFromRaw}%</span>) | ` +
+                `用时: <strong>${duration} ms</strong> | 色彩数: <strong>${result.palette_size}</strong>` +
+                note;
+
+            btn.disabled = false;
+            btn.innerText = '压缩图像';
+
+            const downloadBtn = document.getElementById('downloadBtn');
+            downloadBtn.style.display = 'inline-block';
+            downloadBtn.disabled = false;
+        });
+
+        document.getElementById('downloadBtn').addEventListener('click', () => {
+            if (!compressedBlob) return;
             const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = "compressed.png";
+            link.href = URL.createObjectURL(compressedBlob);
+            link.download = `compressed_${Date.now()}.png`;
             link.click();
         });
     </script>
