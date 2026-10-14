@@ -91,7 +91,12 @@ jobs:
           cd pkg && zip -r ../wasm-imagequant-dist.zip . && cd ..
 
       - name: Create GitHub Release
-        run: gh release create "$GITHUB_REF_NAME" wasm-imagequant-dist.zip --generate-notes
+        run: |
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            echo "Release $GITHUB_REF_NAME already exists, skipping create."
+          else
+            gh release create "$GITHUB_REF_NAME" wasm-imagequant-dist.zip --generate-notes
+          fi
         env:
           GH_TOKEN: ${{ github.token }}
 
