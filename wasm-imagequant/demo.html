@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>自研前端 WASM PNG 压缩测试</title>
+</head>
+<body>
+    <input type="file" id="upload" accept="image/png, image/jpeg" />
+    <br><br>
+    <button id="btn" disabled>压缩并下载 8-bit PNG</button>
+    <p id="info"></p>
+
+    <script type="module">
+        import init, { compress_png } from './pkg/wasm_imagequant.js';
+        let wasmReady = false;
+        let imgBitmap = null;
+
+        init().then(() => {
+            wasmReady = true;
+            console.log("WASM 核心已就绪！");
+        });
+
+        document.getElementById('upload').addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            imgBitmap = await createImageBitmap(file);
+            document.getElementById('btn').disabled = !wasmReady;
+            document.getElementById('info').innerText = `已载入: ${file.name} (${imgBitmap.width}x${imgBitmap.height}), 原始体积: ${(file.size / 1024).toFixed(1)} KB`;
+        });
+
+        document.getElementById('btn').addEventListener('click', () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = imgBitmap.width;
+            canvas.height = imgBitmap.height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(imgBitmap, 0, 0);
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+
+            console.time("WASM压缩耗时");
+            const result = compress_png(imgData.data, canvas.width, canvas.height, 256, 0.8);
+            console.timeEnd("WASM压缩耗时");
+
+            const blob = new Blob([result.data], { type: 'image/png' });
+            document.getElementById('info').innerText += ` -> 压缩后: ${(blob.size / 1024).toFixed(1)} KB`;
+
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = "compressed.png";
+            link.click();
+        });
+    </script>
+</body>
+</html>
